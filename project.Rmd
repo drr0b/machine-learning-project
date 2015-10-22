@@ -1,0 +1,147 @@
+Machine Learning Coursework
+===========================
+
+
+## Introduction
+
+In this work, we aim to predict the activities undertaken by subjects based on accelerometerdata provided by the human activity recognition group (HAR): http://groupware.les.inf.puc-rio.br/har. The training data concerns 6 subjects performing  5 activities (A,B,C,D,E), some correct and some incorrect. Accelerometer data include X-, Y-, Z- movement, pitch, yaw, and roll for sensors on different parts of the body. 
+
+Machine learning models were built from this training data in order to predict the activities in 20 tests, based on data from accelerometers, gyroscopes etc. alone. 
+
+
+## Reading in data
+We begin by reading in the provided data.
+
+```{r}
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+```
+Many of the columns are empty or NA except for when a new window starts, while others give information such as the name of the subject, and the time of the activity. The test data do not have the information provided in the new window columns. Useful columns seem to be 8-11, 37-49, 60-68, 84-86, 113-124, 151-160.
+
+## Building the model
+
+### Initial work
+Given that there were 6 subjects, a natural method for cross validation is to predict on one subject and test it on other subjects in the training data. The first subject is "Carlitos", so we build the first model with his data.
+
+We use a random forest model, which makes numerous decision trees for selecting the class, then votes on the best outcome for each set of predictors.
+
+```{r}
+library(caret)
+set.seed(123456)
+carlitos <- training[training$user_name=="carlitos",c(8:11,37:49,60:68,84:86,113:124,151:160)]
+modFit1 <- train(factor(classe)~.,method="rf",data=carlitos)
+
+# Save model here to avoid re running it in multiple compiles
+saveRDS(modFit1,file="mod1")
+modFit1<- readRDS("mod1")
+```
+
+We compare the predicted values of each excercise with the "classe" variable.
+```{r}
+prediction1 <- predict(modFit1, carlitos)
+confusionMatrix(carlitos$classe,prediction1)
+```
+We see the prediction to be near-perfect, but random forests are prone to overfitting. When we compare with Eurico's data, we find very poor matching; everything is assigned classe = B or E.
+```{r}
+eurico <- training[training$user_name=="eurico",c(8:11,37:49,60:68,84:86,113:124,151:160)]
+confusionMatrix(eurico$classe,predict(modFit1,eurico))
+```
+
+### Modeling the normalised, standardised data for Carlitos
+Using the preProcess command, we can normalise and standardise the data for each subject, then training a model based on that .
+```{r}
+preProc <- preProcess(carlitos[,-51],method=c("center","scale"))
+carlitos_norm <- predict(preProc,carlitos[,-51])
+set.seed(5464)
+modFit2 <- train(factor(carlitos$classe)~.,method="rf",data=carlitos_norm)
+
+#  Save model here to avoid re running it in multiple compiles
+saveRDS(modFit2,file="mod2")
+modFit2<- readRDS("mod2")
+
+confusionMatrix(carlitos$classe,predict(modFit2,carlitos_norm))
+
+#Compare with other, making sure to use SD and mean from sample
+eurico_norm <- predict(preProc,eurico[,-51])
+confusionMatrix(eurico$classe,predict(modFit2,eurico_norm))
+```
+This is about the same.
+
+### Random forest of whole sample
+The next step in model building was to make a random forest model for everybody involved. First, the entire sample was centered and scaled.
+```{r}
+trim <- training[,c(8:11,37:49,60:68,84:86,113:124,151:160)]
+preProc <- preProcess(trim[,-51],method=c("scale","center"))
+trim_prep <- predict(preProc,trim[,-51])
+```
+
+Next, the training data were split into test and training subsets (3:1 split). We needed to make the same splits for the trimmed data and prepared data because the prepared data is missing the outcome column.
+
+```{r}
+inTrain <-  createDataPartition(factor(trim$classe),p= 3/4)[[1]]
+trim_train <- training[inTrain,]
+trim_test <- training[-inTrain,]
+
+prep_train <- trim_prep[inTrain,]
+prep_test <- trim_prep[-inTrain,]
+```
+
+We created a new model, and tested it on the training set
+```{r}
+set.seed(5673)
+modFit3 <- train(factor(trim_train$classe)~.,method="rf",data=prep_train)
+
+#  Save model here to avoid re running it in multiple compiles
+saveRDS(modFit3,file="mod3")
+modFit3<- readRDS("mod3")
+modFit3$finalModel
+confusionMatrix(trim_train$classe,predict(modFit3,prep_train))
+```
+Again we saw 100% success rate. We then tried it on the testing subset of the training data (which has the same standard deviation and mean for each column).
+```{r}
+confusionMatrix(trim_test$classe,predict(modFit3,prep_test))
+```
+This is highly encouraging, with accuracy better than 99%, a huge improvement. However, this is likely to be too high, given that the training and test samples have the same means and standard deviations. In order to estimate out of sample error, we apply it to Carlitos'and Eurico's data, using the mean and standard deviations of the training sample. The means and standard deviations for individuals are expected to vary from those of the group.
+plot(modFit3)
+```{r}
+
+# This pre processing uses whole training SDs and means
+carlitos_prep <- predict(preProc,carlitos[,-51])
+oos_predict <- predict(modFit3,carlitos_prep)
+confusionMatrix(carlitos$classe,oos_predict)
+```
+Now try Eurico
+```{r}
+eurico_prep <- predict(preProc,eurico[,-51])
+oos_predict2 <- predict(modFit3,eurico_prep)
+confusionMatrix(eurico$classe,oos_predict2)
+```
+
+### Estimating the uncertainties
+The random forest method yields several estimates of the out of sample uncertainties. The first is the "out of bag" uncertaintity generated by the random forest model itself, 0.66%. We can also look at the accuracies of the model fits for individual data, since the means and standard deviations will differ from those used in generating the model. The tests with Carlitos' and Eurico's data, yield 95% confdidence lower limits for accuracy of 99.9% and 99.62% respectively. We assume the largest uncertainty of these, 0.66%.
+
+## Running the test.
+We now filter the test set, then scale and centre the test data. 
+
+```{r}
+test <- testing[,c(8:11,37:49,60:68,84:86,113:124,151:160)]
+test_prep <- predict(preProc,test[,-51])
+preds <- predict(modFit3,test_prep)
+```
+Cue fanfare... here are the predictions:
+```{r}
+preds
+```
+
+All that remains is to write the funtion to get them ready for submission.
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(preds)
+```
+Wwe scored 100%!
