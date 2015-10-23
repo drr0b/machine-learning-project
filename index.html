@@ -60,7 +60,7 @@ modFit1 &lt;- train(factor(classe)~.,method="rf",data=carlitos)</code></pre>
 <pre><code># Save model here to avoid re running it in multiple compiles
 saveRDS(modFit1,file="mod1")
 modFit1&lt;- readRDS("mod1")</code></pre>
-<p>We compare the predicted values of each excercise with the âclasseâ variable.</p>
+<p>We compare the predicted values of each excercise with the "classe" variable.</p>
 <pre><code>prediction1 &lt;- predict(modFit1, carlitos)
 confusionMatrix(carlitos$classe,prediction1)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
