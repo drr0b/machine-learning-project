@@ -94,7 +94,7 @@ confusionMatrix(carlitos$classe,prediction1)</code></pre>
 ## Detection Rate          0.268   0.2217   0.1584   0.1562   0.1957
 ## Detection Prevalence    0.268   0.2217   0.1584   0.1562   0.1957
 ## Balanced Accuracy       1.000   1.0000   1.0000   1.0000   1.0000</code></pre>
-<p>We see the prediction to be near-perfect, but random forests are prone to overfitting. When we compare with Euricoâs data, we find very poor matching; everything is assigned classe = B or E.</p>
+<p>We see the prediction to be near-perfect, but random forests are prone to overfitting. When we compare with Eurico's data, we find very poor matching; everything is assigned classe = B or E.</p>
 <pre><code>eurico &lt;- training[training$user_name=="eurico",c(8:11,37:49,60:68,84:86,113:124,151:160)]
 confusionMatrix(eurico$classe,predict(modFit1,eurico))</code></pre>
 <pre><code>## Confusion Matrix and Statistics
@@ -314,7 +314,7 @@ modFit3$finalModel</code></pre>
 ## Detection Rate         0.2843   0.1925   0.1725   0.1609   0.1837
 ## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1837
 ## Balanced Accuracy      0.9991   0.9962   0.9885   0.9957   1.0000</code></pre>
-<p>This is highly encouraging, with accuracy better than 99%, a huge improvement. However, this is likely to be too high, given that the training and test samples have the same means and standard deviations. In order to estimate out of sample error, we apply it to Carlitos' and Eurico's data, using the mean and standard deviations of the training sample. The means and standard deviations for individuals are expected to vary from those of the group. plot(modFit3)</p>
+<p>This is highly encouraging, with accuracy better than 99%, a huge improvement. However, this is likely to be too high, given that the training and test samples have the same means and standard deviations. In order to estimate out of sample error, we apply it to Carlitos' and Eurico's data, using the mean and standard deviations of the training sample. The means and standard deviations for individuals are expected to vary from those of the group.</p>
 <pre><code># This pre processing uses whole training SDs and means
 carlitos_prep &lt;- predict(preProc,carlitos[,-51])
 oos_predict &lt;- predict(modFit3,carlitos_prep)
